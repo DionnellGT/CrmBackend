@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ------------------------------------------------------
+// Usuarios del sistema (vendedores, admins, marketing)
+// ------------------------------------------------------
+enum Role {
+  ADMIN
+  SALES
+  MARKETING
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(SALES)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deals      Deal[]
+  activities Activity[]
+
+  @@map("users")
+}
+
+// ------------------------------------------------------
+// Contactos / Leads
+// ------------------------------------------------------
+model Contact {
+  id           String   @id @default(uuid())
+  firstName    String
+  lastName     String?
+  email        String?  @unique
+  phone        String?
+  source       String? // ej: "web", "referral", "ads"
+  tags         String[] @default([])
+  customFields Json     @default("{}")
+  score        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  deals      Deal[]
+  activities Activity[]
+
+  @@map("contacts")
+  @@index([email])
+}
+
+// ------------------------------------------------------
+// Pipeline / Stages / Deals (Kanban)
+// ------------------------------------------------------
+model Pipeline {
+  id        String   @id @default(uuid())
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  stages Stage[]
+
+  @@map("pipelines")
+}
+
+model Stage {
+  id         String @id @default(uuid())
+  name       String
+  order      Int
+  pipelineId String
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  deals Deal[]
+
+  @@map("stages")
+  @@index([pipelineId])
+}
+
+model Deal {
+  id            String   @id @default(uuid())
+  title         String
+  value         Decimal  @default(0) @db.Decimal(12, 2)
+  probability   Int      @default(0) // 0-100
+  closeDate     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  stageId String
+  stage   Stage @relation(fields: [stageId], references: [id])
+
+  ownerId String?
+  owner   User?   @relation(fields: [ownerId], references: [id])
+
+  activities Activity[]
+
+  @@map("deals")
+  @@index([stageId])
+  @@index([contactId])
+}
+
+// ------------------------------------------------------
+// Actividades (log de interacciones)
+// ------------------------------------------------------
+enum ActivityType {
+  CALL
+  EMAIL
+  NOTE
+  TASK
+  MEETING
+}
+
+model Activity {
+  id        String       @id @default(uuid())
+  type      ActivityType
+  content   String
+  dueDate   DateTime?
+  completed Boolean      @default(false)
+  createdAt DateTime     @default(now())
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  dealId String?
+  deal   Deal?   @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@map("activities")
+  @@index([contactId])
+}
+
+// ------------------------------------------------------
+// Workflows (automatizaciones)
+// ------------------------------------------------------
+enum TriggerEvent {
+  CONTACT_CREATED
+  DEAL_STAGE_CHANGED
+  DEAL_CREATED
+  TAG_ADDED
+}
+
+model Workflow {
+  id         String       @id @default(uuid())
+  name       String
+  isActive   Boolean      @default(true)
+  trigger    TriggerEvent
+  conditions Json         @default("[]") // condiciones evaluadas contra el payload del evento
+  actions    Json         @default("[]") // secuencia de acciones (email, wait, update, task)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  executions WorkflowExecution[]
+
+  @@map("workflows")
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  WAITING
+  COMPLETED
+  FAILED
+}
+
+model WorkflowExecution {
+  id         String          @id @default(uuid())
+  workflowId String
+  workflow   Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  status     ExecutionStatus @default(PENDING)
+  contextId  String // id del contacto o deal que disparó el workflow
+  currentStep Int            @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@map("workflow_executions")
+  @@index([workflowId])
+}

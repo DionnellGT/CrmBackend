@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Instala dependencias primero para aprovechar la cache de Docker
+COPY package*.json ./
+RUN npm install
+
+# Prisma necesita el schema presente antes de generate
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# El resto del código se monta como volumen en docker-compose (hot reload),
+# esta copia es solo fallback si se corre la imagen sin volumen.
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "start:dev"]
