@@ -9,12 +9,12 @@ import {
 
 class InitialStageDto {
   @IsString()
-  name: string;
+  name!: string;
 }
 
 export class CreatePipelineDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsBoolean()

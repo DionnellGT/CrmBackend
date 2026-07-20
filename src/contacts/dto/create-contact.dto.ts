@@ -11,7 +11,7 @@ import {
 
 export class CreateContactDto {
   @IsString()
-  firstName: string;
+  firstName!: string;
 
   @IsOptional()
   @IsString()

@@ -10,13 +10,13 @@ import {
 
 export class CreateDealDto {
   @IsString()
-  title: string;
+  title!: string;
 
   @IsString()
-  contactId: string;
+  contactId!: string;
 
   @IsString()
-  stageId: string;
+  stageId!: string;
 
   @IsOptional()
   @IsNumber()

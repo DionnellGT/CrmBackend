@@ -3,15 +3,15 @@ import { IsArray, IsInt, IsString, ValidateNested } from 'class-validator';
 
 class StageOrderItem {
   @IsString()
-  id: string;
+  id!: string;
 
   @IsInt()
-  order: number;
+  order!: number;
 }
 
 export class ReorderStagesDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => StageOrderItem)
-  stages: StageOrderItem[];
+  stages!: StageOrderItem[];
 }
