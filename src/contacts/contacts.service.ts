@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactDto } from './dto/create-contact.dto';
@@ -7,8 +8,11 @@ import { QueryContactDto } from './dto/query-contact.dto';
 
 @Injectable()
 export class ContactsService {
-  constructor(private readonly prisma: PrismaService) {}
- 
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
+
   async create(dto: CreateContactDto) {
     if (dto.email) {
       const existing = await this.prisma.contact.findUnique({
@@ -19,12 +23,17 @@ export class ContactsService {
       }
     }
 
-    return this.prisma.contact.create({
+    const contact = await this.prisma.contact.create({
       data: {
         ...dto,
         customFields: (dto.customFields ?? {}) as Prisma.InputJsonValue,
       },
     });
+
+    // No bloquea la respuesta al usuario: los workflows corren en background vía BullMQ
+    this.eventEmitter.emit('contact.created', contact);
+
+    return contact;
   }
 
   async findAll(query: QueryContactDto) {

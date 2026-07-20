@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDealDto } from './dto/create-deal.dto';
@@ -16,7 +17,10 @@ const dealInclude = {
 
 @Injectable()
 export class DealsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async create(dto: CreateDealDto) {
     const lastInStage = await this.prisma.deal.findFirst({
@@ -24,7 +28,7 @@ export class DealsService {
       orderBy: { order: 'desc' },
     });
 
-    return this.prisma.deal.create({
+    const deal = await this.prisma.deal.create({
       data: {
         title: dto.title,
         contactId: dto.contactId,
@@ -37,6 +41,10 @@ export class DealsService {
       },
       include: dealInclude,
     });
+
+    this.eventEmitter.emit('deal.created', deal);
+
+    return deal;
   }
 
   async findAll(query: QueryDealDto) {
@@ -153,6 +161,11 @@ export class DealsService {
           data: { stageId: toStageId, order: toOrder },
         });
       });
+
+      const updated = await this.findOne(id);
+      // Solo dispara workflows de cambio de etapa en un movimiento real entre columnas
+      this.eventEmitter.emit('deal.stage_changed', { ...updated, fromStageId });
+      return updated;
     }
 
     return this.findOne(id);
