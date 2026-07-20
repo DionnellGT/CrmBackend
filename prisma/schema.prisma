@@ -87,6 +87,7 @@ model Deal {
   title         String
   value         Decimal  @default(0) @db.Decimal(12, 2)
   probability   Int      @default(0) // 0-100
+  order         Int      @default(0) // posición dentro de la columna (stage) para el Kanban
   closeDate     DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

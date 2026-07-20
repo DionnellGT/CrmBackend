@@ -4,12 +4,16 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { ContactsModule } from './contacts/contacts.module';
+import { PipelinesModule } from './pipelines/pipelines.module';
+import { DealsModule } from './deals/deals.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     ContactsModule,
+    PipelinesModule,
+    DealsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
